@@ -134,7 +134,7 @@ const CallHistory = () => {
         <FlatList 
         data={callData}
         renderItem={renderItem}
-        />
+        /> 
      
     {selectedCall && (
         <Modal animationType='slide'

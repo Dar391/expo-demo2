@@ -1,109 +1,372 @@
-import React from 'react'
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import FontAwesome from 'react-native-vector-icons/FontAwesome'
-
+import React, { useEffect, useState } from "react";
+import {
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import FontAwesome from "react-native-vector-icons/FontAwesome";
+import * as ImagePicker from "expo-image-picker";
+import axios from "axios";
 
 const ContactList = () => {
+  const [modalVisible, setModalVisible] = useState(false);
 
-    const contactData = [
-        {name:"Anna Cruz", number: +639152489578, relation:'Work',
-             image:'https://media.istockphoto.com/id/1437816897/photo/business-woman-manager-or-human-resources-portrait-for-career-success-company-we-are-hiring.jpg?s=612x612&w=0&k=20&c=tyLvtzutRh22j9GqSGI33Z4HpIwv9vL_MZw_xOE19NQ='},
-        {name:"Elsa Doe", number: +639184965257, relation:'Family',
-             image:'https://media.istockphoto.com/id/1386479313/photo/happy-millennial-afro-american-business-woman-posing-isolated-on-white.jpg?b=1&s=612x612&w=0&k=20&c=MsKXmwf7TDRdKRn_lHohhmD5rvVvnGs9ry0xl6CrMT4='},
-        {name:"Alice Blue", number: +639856674123, relation:'Friend',
-             image:'https://t3.ftcdn.net/jpg/08/05/39/50/240_F_805395048_g1AHkBq7Bcs27aWU4rMHgdtGFDQ5IqeG.jpg'},
-        {name:"Alex Moore", number: +639884412596, relation:'Friend',
-             image:'https://atd-blog.s3.us-east-2.amazonaws.com/wp-content/uploads/2022/04/16142821/cool-profile-pictures-for-girls-9.webp'},
-        {name:"Trish Lane", number: +639256557894, relation:'Work',
-             image:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQNKjdNYeUExfmYku_I9lMFsCkydHHqOsx8qqqWVeV1wJD_rZM-aUBuBnD8iFpm72KFP54&usqp=CAUhttps://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQNKjdNYeUExfmYku_I9lMFsCkydHHqOsx8qqqWVeV1wJD_rZM-aUBuBnD8iFpm72KFP54&usqp=CAU'},
-        {name:"Deone Ralf", number: +639123652139, relation:'Work',
-             image:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTRRaROhQ1C3f_3XDU290fRAGfd66-CZnjdTMgiApuLcMRuTr5E3txwRy4FfmwLe7hkqpw&usqp=CAU'},
-        {name:"Jean Chu", number: +639884412396, relation:'Client',
-             image:'https://media.istockphoto.com/id/1487465664/photo/portrait-employee-and-asian-woman-with-happiness-selfie-and-confident-entrepreneur-with.jpg?s=612x612&w=0&k=20&c=o-G4E27GNFTbxFSG7PbaamDPAPLPRsh2WWgtsiGdXDA='},
-        {name:"Cris Dennings", number: +639887963254, relation:'Client',
-             image:'https://plus.unsplash.com/premium_photo-1690579805307-7ec030c75543?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8cHJvZmlsZSUyMGljb258ZW58MHx8MHx8fDA%3D'},
-    ]
+  const [image, setImage] = useState<string | null>(null);
+  const [contactID, setContactID] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [relation, setRelation] = useState("");
+
+  //image picker
+  const openImagePicker = async () => {
+    let permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.granted) {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setImage(result.assets[0].uri); // Set the selected image URI
+      }
+    } else {
+      alert("Permission to access media library is required!");
+    }
+  };
+
+  //modal
+  const openModal = () => {
+    setModalVisible(true); // Show the modal
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
+  //inserting to database using axios
+  const insertContact = async () => {
+    if (!firstName || !lastName || !phoneNumber || !relation) {
+      alert("Please fill in all fields.");
+      return; // Prevent submission if any field is empty
+    }
+
+    const url = "http://192.168.24.243/EXPO-DEMO2/database/insert.php";
+
+    const contactData = {
+      contactID: contactID,
+      firstName: firstName,
+      lastName: lastName,
+      contactNumber: phoneNumber,
+      relation: relation,
+      image: image,
+    };
+
+    console.log("Data to be sent:", contactData);
+
+    try {
+      const response = await axios.post(url, contactData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      console.log("Response from PHP:", response.data);
+      closeModal();
+      setRefreshData(true);
+      setFirstName("");
+      setLastName("");
+      setPhoneNumber("");
+      setRelation("");
+      setImage(null);
+    } catch (error) {
+      console.error("Error saving contact:", error);
+    }
+  };
+
+  const deleteContact = (id: any) => {
+    console.log("ID is:", id);
+
+    axios
+      .post("http://192.168.24.243/EXPO-DEMO2/database/delete.php", {
+        id: id,
+      })
+      .then((response) => {
+        console.log(response.data);
+      });
+  };
+
+  //declarations for displaying/getting data from db
+  const [contactData, setContactData] = useState<any[]>([]);
+  const [refreshData, setRefreshData] = useState(true);
+
+  //when the file is loaded, this line of code will be triggered
+  //getting data from database (array form) using axios with refresh function
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          "http://192.168.24.243/EXPO-DEMO2/database/display.php"
+        );
+        console.log("List of data from PHP:", response.data);
+        setContactData(response.data);
+      } catch (error) {
+        console.error("Error fetching contact data:", error);
+      } finally {
+        setRefreshData(false);
+      }
+    };
+
+    if (refreshData) {
+      fetchData();
+    }
+  }, [refreshData]);
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollContent}>
         <View style={styles.cardContainer}>
-            {contactData.map((contact, index) => (
-                <View key={index} style={styles.cardBody}>
-                    <Image source={{uri:contact.image
-                    }} style={styles.image}/>
-                    <View style={styles.textContainer}>
-                        <Text style={styles.name}>{contact.name}</Text>
-                        <Text>{contact.number}</Text>
-                        <Text>{contact.relation}</Text>
-                    </View>
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity style={styles.button}>
-                            <FontAwesome name='envelope-o' size={24} color="black"/>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.button}>
-                            <FontAwesome name= "phone" size={24} color="black" />
-                        </TouchableOpacity>
-                    </View>
-
+          {Array.isArray(contactData) && contactData.length > 0 ? (
+            contactData.map((contact, index) => (
+              <View key={index} style={styles.cardBody}>
+                <Image
+                  source={{
+                    uri: contact.contactImage || "path/to/default-image.jpg",
+                  }}
+                  style={styles.image}
+                />
+                <View style={styles.textContainer}>
+                  <Text style={styles.name}>{contact.contactName}</Text>
+                  <Text>{contact.contactNumber}</Text>
+                  <Text>{contact.contactRelation}</Text>
                 </View>
-            ))}
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity style={styles.button}>
+                    <FontAwesome name="phone" size={24} color="black" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.button}>
+                    <FontAwesome
+                      name="trash"
+                      size={24}
+                      color="black"
+                      onPress={() => deleteContact(contact.contactID)}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text>No contacts available</Text>
+          )}
         </View>
-    </ScrollView>
- 
-  )
-}
+      </ScrollView>
+      <TouchableOpacity style={styles.fab} onPress={() => openModal()}>
+        <FontAwesome name="plus" size={24} color="white" />
+      </TouchableOpacity>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalView}>
+            <View style={styles.headerAlignment}>
+              <Text style={styles.header}>New Contact</Text>
+
+              <TouchableOpacity onPress={closeModal}>
+                <FontAwesome name="close" size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={openImagePicker}
+              style={styles.imageButton}
+            >
+              <Text style={styles.imageButtonText}>Choose Image</Text>
+            </TouchableOpacity>
+
+            {image && (
+              <Image source={{ uri: image }} style={styles.imagePreview} />
+            )}
+
+            <TextInput
+              style={styles.input}
+              placeholder="First name"
+              keyboardType="default"
+              value={firstName}
+              onChangeText={setFirstName}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Last name"
+              keyboardType="default"
+              value={lastName}
+              onChangeText={setLastName}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Phone number"
+              keyboardType="decimal-pad"
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Relation"
+              keyboardType="default"
+              value={relation}
+              onChangeText={setRelation}
+            />
+
+            <TouchableOpacity
+              onPress={insertContact}
+              style={styles.closeButton}
+            >
+              <Text style={styles.closeButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: 'whitesmoke',
-        
-    },
-    cardContainer:{
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        padding: 10,
-        
-        
-    },
-    cardBody:{
-        borderRadius: 10,
-        borderColor: 'grey',
-        borderWidth: 1,
-        padding: 10,
-        marginBottom: 20,
-        width: '48%',
-        height: 'auto',
-        
-        
-    },
-    image:{
-        width: '100%',
-        height: 100,
-        borderRadius: 10,
-    },
-    textContainer: {
-        marginTop: 10,
-    },
-    name: {
-        fontSize:24,
-        fontWeight: 'bold',
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 10,
-    },
-    button: {
-         
-        borderRadius: 5,
-        padding: 10,
-        width: '48%',
-        alignItems: 'center',
-        
-    },
-    
-})
+  container: {
+    flex: 1,
+    backgroundColor: "whitesmoke",
+  },
+  cardContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    padding: 10,
+  },
+  cardBody: {
+    borderRadius: 10,
+    borderColor: "grey",
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 20,
+    width: "48%",
+    height: "auto",
+  },
+  image: {
+    width: "100%",
+    height: 100,
+    borderRadius: 10,
+  },
+  textContainer: {
+    marginTop: 10,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: "auto",
+  },
+  button: {
+    borderRadius: 5,
+    padding: 10,
+    width: "48%",
+    alignItems: "center",
+  },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 20,
+    backgroundColor: "#2196F3",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 4, // for Android shadow
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 2,
+  },
+  scrollContent: {
+    paddingBottom: 80,
+  },
+  input: {
+    width: "100%",
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    marginVertical: 10,
 
-export default ContactList
+    borderBottomWidth: 1,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalView: {
+    width: "80%",
+    height: "auto",
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 35,
+
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  header: {
+    fontSize: 20,
+    fontWeight: "bold",
+    paddingBottom: "10%",
+  },
+  headerAlignment: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  closeButton: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: "#2196F3",
+    borderRadius: 5,
+    alignContent: "center",
+    alignItems: "center",
+  },
+  closeButtonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  imageButton: {
+    backgroundColor: "#4CAF50",
+    padding: 10,
+    marginVertical: 10,
+    borderRadius: 5,
+  },
+  imageButtonText: {
+    color: "white",
+    fontSize: 16,
+  },
+  imagePreview: {
+    width: 100,
+    height: 100,
+    marginTop: 10,
+    borderRadius: 5,
+  },
+});
+
+export default ContactList;
