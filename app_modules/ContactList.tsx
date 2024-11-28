@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Image,
   Modal,
   ScrollView,
@@ -22,6 +23,7 @@ const ContactList = () => {
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [relation, setRelation] = useState("");
+  const [editingContact, setEditingContact] = useState(null);
 
   //image picker
   const openImagePicker = async () => {
@@ -46,6 +48,12 @@ const ContactList = () => {
   };
 
   const closeModal = () => {
+    setEditingContact(null);
+    setFirstName("");
+    setLastName("");
+    setPhoneNumber("");
+    setRelation("");
+    setImage(null);
     setModalVisible(false);
   };
 
@@ -56,7 +64,7 @@ const ContactList = () => {
       return; // Prevent submission if any field is empty
     }
 
-    const url = "http://192.168.24.243/EXPO-DEMO2/database/insert.php";
+    const url = "http://192.168.201.243/EXPO-DEMO2/database/insert.php";
 
     const contactData = {
       contactID: contactID,
@@ -83,6 +91,7 @@ const ContactList = () => {
       setPhoneNumber("");
       setRelation("");
       setImage(null);
+      alert("Contact saved successfully!");
     } catch (error) {
       console.error("Error saving contact:", error);
     }
@@ -91,13 +100,70 @@ const ContactList = () => {
   const deleteContact = (id: any) => {
     console.log("ID is:", id);
 
+    Alert.alert(
+      "Delete Contact",
+      "Are you sure you want to delete this contact?",
+      [
+        {
+          text: "Cancel",
+          onPress: () => console.log("Cancel Pressed"),
+        },
+        {
+          text: "Delete",
+          onPress: () => {
+            console.log("Delete Pressed");
+
+            axios
+              .post("http://192.168.201.243/EXPO-DEMO2/database/delete.php", {
+                id: id,
+              })
+              .then((response) => {
+                console.log(response.data);
+                setRefreshData(true); // Trigger refresh of the data
+              })
+              .catch((error) => {
+                console.error("Error deleting contact", error);
+              });
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const updateContact = (contact: any) => {
+    console.log("ID to update is:", contact.contactID);
     axios
-      .post("http://192.168.24.243/EXPO-DEMO2/database/delete.php", {
-        id: id,
+      .post("http://192.168.201.243/EXPO-DEMO2/database/update.php", {
+        id: contact.contactID,
+        firstName: firstName,
+        lastName: lastName,
+        phoneNumber: phoneNumber,
+        relation: relation,
+        image: image,
       })
       .then((response) => {
-        console.log(response.data);
+        alert("Contact updated successfully!");
+        setRefreshData(true);
+        closeModal();
+      })
+      .catch((error) => {
+        console.error("Error updating contact:", error);
       });
+  };
+
+  const openEditModal = (contact: any) => {
+    setEditingContact(contact);
+
+    const [firstName, ...lastNameParts] = contact.contactName.split(" ");
+    const lastName = lastNameParts.join(" ");
+
+    setFirstName(firstName);
+    setLastName(lastName);
+    setPhoneNumber(contact.contactNumber);
+    setRelation(contact.contactRelation);
+    setImage(contact.contactImage || null);
+    setModalVisible(true);
   };
 
   //declarations for displaying/getting data from db
@@ -110,7 +176,7 @@ const ContactList = () => {
     const fetchData = async () => {
       try {
         const response = await axios.get(
-          "http://192.168.24.243/EXPO-DEMO2/database/display.php"
+          "http://192.168.201.243/EXPO-DEMO2/database/display.php"
         );
         console.log("List of data from PHP:", response.data);
         setContactData(response.data);
@@ -146,7 +212,12 @@ const ContactList = () => {
                 </View>
                 <View style={styles.buttonContainer}>
                   <TouchableOpacity style={styles.button}>
-                    <FontAwesome name="phone" size={24} color="black" />
+                    <FontAwesome
+                      name="pencil"
+                      size={24}
+                      color="black"
+                      onPress={() => openEditModal(contact)}
+                    />
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.button}>
                     <FontAwesome
@@ -177,7 +248,9 @@ const ContactList = () => {
         <View style={styles.modalContainer}>
           <View style={styles.modalView}>
             <View style={styles.headerAlignment}>
-              <Text style={styles.header}>New Contact</Text>
+              <Text style={styles.header}>
+                {editingContact ? "Edit Contact" : "New Contact"}
+              </Text>
 
               <TouchableOpacity onPress={closeModal}>
                 <FontAwesome name="close" size={20} />
@@ -188,7 +261,9 @@ const ContactList = () => {
               onPress={openImagePicker}
               style={styles.imageButton}
             >
-              <Text style={styles.imageButtonText}>Choose Image</Text>
+              <Text style={styles.imageButtonText}>
+                {editingContact ? "Change Image" : "Choose Image"}
+              </Text>
             </TouchableOpacity>
 
             {image && (
@@ -225,10 +300,16 @@ const ContactList = () => {
             />
 
             <TouchableOpacity
-              onPress={insertContact}
+              onPress={
+                editingContact
+                  ? () => updateContact(editingContact)
+                  : insertContact
+              }
               style={styles.closeButton}
             >
-              <Text style={styles.closeButtonText}>Save</Text>
+              <Text style={styles.closeButtonText}>
+                {editingContact ? "Update" : "Save"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
